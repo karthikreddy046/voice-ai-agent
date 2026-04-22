@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Voice AI Agent</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .app {
+      width: 420px;
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .status {
+      font-size: 12px;
+    }
+
+    .connected { color: #22c55e; }
+    .disconnected { color: #ef4444; }
+
+    .chat {
+      height: 260px;
+      overflow-y: auto;
+      background: #020617;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .msg {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .user { color: #60a5fa; }
+    .agent { color: #34d399; }
+
+    .input-box {
+      display: flex;
+      gap: 5px;
+    }
+
+    input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+
+    button {
+      padding: 8px 12px;
+      border: none;
+      background: #34d399;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .quick {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 5px;
+    }
+
+    .quick button {
+      flex: 1;
+      font-size: 12px;
+      padding: 6px;
+    }
+
+    .latency {
+      font-size: 11px;
+      margin-top: 5px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="header">
+    <strong>Voice AI Agent</strong>
+    <span id="status" class="status disconnected">Disconnected</span>
+  </div>
+
+  <div class="quick">
+    <button onclick="sendQuick('book appointment')">Book</button>
+    <button onclick="sendQuick('cancel appointment')">Cancel</button>
+    <button onclick="sendQuick('check slots')">Check</button>
+  </div>
+
+  <div id="chat" class="chat"></div>
+
+  <div class="input-box">
+    <input id="input" placeholder="Type message..." />
+    <button onclick="sendMsg()">Send</button>
+  </div>
+
+  <div id="latency" class="latency"></div>
+</div>
+
+<script>
+  let ws;
+  let startTime;
+
+  function connect() {
+    ws = new WebSocket("ws://localhost:8000/ws");
+
+    ws.onopen = () => {
+      setStatus(true);
+    };
+
+    ws.onmessage = (event) => {
+      const latency = Date.now() - startTime;
+      addMsg("Agent", event.data, "agent");
+      document.getElementById("latency").innerText = "Latency: " + latency + " ms";
+    };
+
+    ws.onclose = () => {
+      setStatus(false);
+    };
+  }
+
+  function setStatus(isConnected) {
+    const el = document.getElementById("status");
+    el.innerText = isConnected ? "Connected" : "Disconnected";
+    el.className = "status " + (isConnected ? "connected" : "disconnected");
+  }
+
+  function addMsg(sender, text, cls) {
+    const chat = document.getElementById("chat");
+    const div = document.createElement("div");
+    div.className = "msg " + cls;
+    div.innerText = sender + ": " + text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function sendMsg() {
+    const input = document.getElementById("input");
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      addMsg("System", "Not connected", "agent");
+      return;
+    }
+
+    addMsg("You", text, "user");
+
+    startTime = Date.now();
+    ws.send(text);
+
+    input.value = "";
+  }
+
+  function sendQuick(text) {
+    document.getElementById("input").value = text;
+    sendMsg();
+  }
+
+  // auto connect
+  connect();
+</script>
+
+</body>
+</html>
